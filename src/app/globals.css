@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #010214;
+
+  /* Paleta oficial Future Match */
+  --fm-lavender: #ddd5fd;
+  --fm-lilac: #bbaafb;
+  --fm-purple: #7755f7;
+  --fm-black: #010214;
+  --fm-blue: #3490fe;
+  --fm-navy: #000f4d;
+  --fm-navy-dark: #04082c;
+  --fm-text: #010214;
+  --fm-text-muted: #5c5a7a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-avenir-fallback);
+
+  --color-fm-purple: var(--fm-purple);
+  --color-fm-lilac: var(--fm-lilac);
+  --color-fm-blue: var(--fm-blue);
+  --color-fm-lavender: var(--fm-lavender);
+  --color-fm-navy: var(--fm-navy);
+  --color-fm-navy-dark: var(--fm-navy-dark);
+  --color-fm-black: var(--fm-black);
+  --color-fm-text: var(--fm-text);
+  --color-fm-text-muted: var(--fm-text-muted);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-avenir-fallback);
+}
+
+section[id] {
+  scroll-margin-top: 88px;
+}
