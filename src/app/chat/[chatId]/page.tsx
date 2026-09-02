@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getChatMessages, sendChatMessage, listChats, type ChatMessage } from "@/lib/api";
+import ChatBubble from "@/components/chat/ChatBubble";
 
 const FREE_CHAT_LIMIT = 3;
 
@@ -54,8 +55,8 @@ export default function ChatConversationPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend() {
-    const text = input.trim();
+  async function handleSend(override?: string) {
+    const text = (override ?? input).trim();
     if (!text || sending) return;
 
     setInput("");
@@ -85,7 +86,10 @@ export default function ChatConversationPage() {
         {
           id: `temp-e-${Date.now()}`,
           role: "assistant",
-          content: "Uy, no pude responder ahora mismo. Probá de nuevo en un momento.",
+          content: JSON.stringify({
+            message: "Uy, no pude responder ahora mismo. Probá de nuevo en un momento.",
+            options: [],
+          }),
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -137,16 +141,7 @@ export default function ChatConversationPage() {
                 AI
               </div>
             )}
-            <div
-              className={`max-w-2xl rounded-2xl px-5 py-3 text-sm leading-relaxed ${
-                m.role === "user"
-                  ? "rounded-tr-sm text-white"
-                  : "rounded-tl-sm border border-gray-200 bg-gray-100 text-gray-900"
-              }`}
-              style={m.role === "user" ? { background: "linear-gradient(135deg,#5b21b6,#7c3aed)" } : undefined}
-            >
-              {m.content}
-            </div>
+            <ChatBubble role={m.role} content={m.content} onOptionClick={(opt) => handleSend(opt)} />
           </motion.div>
         ))}
         {sending && (
@@ -173,7 +168,7 @@ export default function ChatConversationPage() {
             className="flex-1 rounded-full border border-gray-300 px-5 py-3 text-sm outline-none transition-colors focus:border-fm-purple focus:ring-2 focus:ring-fm-purple/20"
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={sending || !input.trim()}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-50"
             style={{ background: "linear-gradient(135deg,#5b21b6,#7c3aed)" }}
