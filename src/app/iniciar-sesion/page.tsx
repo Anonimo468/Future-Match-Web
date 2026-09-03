@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { isDisposableEmail } from "@/lib/disposableEmail";
 
 function GoogleIcon() {
   return (
@@ -32,6 +33,12 @@ export default function IniciarSesionPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (isDisposableEmail(email)) {
+      setError("No aceptamos correos temporales o desechables. Usá un correo real (Gmail, Outlook, etc.).");
+      return;
+    }
+
     setLoading(true);
 
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { isDisposableEmail } from "@/lib/disposableEmail";
 
 function GoogleIcon() {
   return (
@@ -35,6 +36,11 @@ export default function RegistroPage() {
 
     if (!acceptedTerms) {
       setError("Tenés que aceptar los términos y condiciones para continuar.");
+      return;
+    }
+
+    if (isDisposableEmail(formData.email)) {
+      setError("No aceptamos correos temporales o desechables. Usá un correo real (Gmail, Outlook, etc.).");
       return;
     }
 
