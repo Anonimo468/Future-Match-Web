@@ -128,6 +128,13 @@ export default function Navbar() {
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-gray-100 bg-white py-1.5 shadow-lg">
                   <Link
+                    href="/perfil"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Perfil
+                  </Link>
+                  <Link
                     href="/chat"
                     onClick={() => setMenuOpen(false)}
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -183,6 +190,9 @@ export default function Navbar() {
                   )}
                   <span className="truncate text-sm font-medium text-gray-700">{displayName(user)}</span>
                 </div>
+                <Link href="/perfil" onClick={() => setOpen(false)} className="text-sm font-medium text-gray-700 hover:text-violet-700">
+                  Perfil
+                </Link>
                 <Link href="/chat" onClick={() => setOpen(false)} className="text-sm font-medium text-gray-700 hover:text-violet-700">
                   Mis chats
                 </Link>

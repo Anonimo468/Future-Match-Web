@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +18,51 @@ import { createClient } from "@/lib/supabase/client";
 type AnswerValue = number | string;
 type Status = "answering" | "submitting" | "done" | "error";
 
+// Guardamos el progreso en localStorage para que un error de red o un
+// refresh accidental no borre respuestas ya contestadas (le pasó a un
+// usuario en la pregunta 36/50 con mala conexión). Se limpia al llegar
+// al resultado o si expiró (48hs) o cambió la cantidad de preguntas.
+const QUIZ_STORAGE_KEY = "fm_quiz_progress";
+const QUIZ_STORAGE_TTL_MS = 48 * 60 * 60 * 1000;
+
+interface StoredQuizProgress {
+  currentIndex: number;
+  answers: Record<number, AnswerValue>;
+  questionCount: number;
+  savedAt: number;
+}
+
+function loadStoredProgress(): { currentIndex: number; answers: Record<number, AnswerValue> } | null {
+  try {
+    const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredQuizProgress;
+    if (parsed.questionCount !== QUESTIONS.length) return null;
+    if (Date.now() - parsed.savedAt > QUIZ_STORAGE_TTL_MS) return null;
+    if (Object.keys(parsed.answers).length === 0) return null;
+    return { currentIndex: parsed.currentIndex, answers: parsed.answers };
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredProgress(currentIndex: number, answers: Record<number, AnswerValue>) {
+  try {
+    const payload: StoredQuizProgress = { currentIndex, answers, questionCount: QUESTIONS.length, savedAt: Date.now() };
+    localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // localStorage puede fallar (modo privado, cuota llena, etc.) — no es crítico
+  }
+}
+
+function clearStoredProgress() {
+  try {
+    localStorage.removeItem(QUIZ_STORAGE_KEY);
+  } catch {
+    // ignorar
+  }
+}
+
 export default function CuestionarioPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -29,12 +74,32 @@ export default function CuestionarioPage() {
   const [progressMessage, setProgressMessage] = useState("Analizando tu perfil...");
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [restoredNotice, setRestoredNotice] = useState(false);
+
+  // Al montar, restauramos progreso guardado (si hay) en vez de arrancar en 0.
+  useEffect(() => {
+    const stored = loadStoredProgress();
+    if (stored) {
+      setAnswers(stored.answers);
+      setCurrentIndex(stored.currentIndex);
+      setRestoredNotice(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guardamos en cada cambio de respuesta/pregunta mientras se está contestando.
+  useEffect(() => {
+    if (status !== "answering") return;
+    if (Object.keys(answers).length === 0) return;
+    saveStoredProgress(currentIndex, answers);
+  }, [answers, currentIndex, status]);
 
   const question = QUESTIONS[currentIndex];
   const isLast = currentIndex === QUESTIONS.length - 1;
   const currentAnswer = answers[question.id];
 
   function setAnswer(value: AnswerValue) {
+    setRestoredNotice(false);
     setAnswers((prev) => ({ ...prev, [question.id]: value }));
   }
 
@@ -63,6 +128,7 @@ export default function CuestionarioPage() {
         if (event.step === "done") {
           setResult(event.result);
           setStatus("done");
+          clearStoredProgress();
         } else if (event.step === "error") {
           setErrorMessage(event.message);
           setStatus("error");
@@ -258,6 +324,13 @@ export default function CuestionarioPage() {
     <div className="flex min-h-screen flex-col bg-gray-50">
       <QuizHeader />
       <QuizProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
+
+      {restoredNotice && (
+        <div className="mx-auto mt-4 flex w-full max-w-[700px] items-center justify-center gap-2 px-6 text-center text-xs font-medium text-violet-700">
+          <RotateCcw className="h-3.5 w-3.5" />
+          Retomamos tu progreso guardado, seguí donde lo dejaste.
+        </div>
+      )}
 
       <div className="flex flex-1 items-center justify-center px-6 py-10">
         <AnimatePresence mode="wait">
