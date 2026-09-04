@@ -190,7 +190,16 @@ export default function RegistroPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-fm-purple focus:ring-fm-purple"
               />
-              <label htmlFor="terms" className="text-sm text-gray-700">Acepto los términos y condiciones</label>
+              <label htmlFor="terms" className="text-sm text-gray-700">
+                Acepto los{" "}
+                <Link href="/terminos" target="_blank" className="font-medium text-fm-purple hover:underline">
+                  términos y condiciones
+                </Link>{" "}
+                y la{" "}
+                <Link href="/privacidad" target="_blank" className="font-medium text-fm-purple hover:underline">
+                  política de privacidad
+                </Link>
+              </label>
             </div>
 
             <button

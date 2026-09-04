@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { gBtn } from "@/lib/styles";
 
 const SOCIAL_ICONS = [
@@ -80,8 +81,13 @@ export default function Footer() {
           </button>
         </div>
       </div>
-      <div className="max-w-[1200px] mx-auto px-6 pt-6 border-t border-white/6">
+      <div className="max-w-[1200px] mx-auto px-6 pt-6 border-t border-white/6 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
         <p className="text-white/60 text-xs text-center font-light">© 2026 Future Match. Todos los derechos reservados</p>
+        <span className="hidden sm:inline text-white/30 text-xs">·</span>
+        <div className="flex items-center gap-4">
+          <Link href="/terminos" className="text-white/60 text-xs font-light hover:text-violet-300 transition-colors">Términos y condiciones</Link>
+          <Link href="/privacidad" className="text-white/60 text-xs font-light hover:text-violet-300 transition-colors">Privacidad</Link>
+        </div>
       </div>
     </footer>
   );
