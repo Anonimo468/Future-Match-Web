@@ -84,8 +84,8 @@ export default function RegistroPage() {
         <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/10" />
         <div className="relative z-10 flex flex-col items-center gap-6 px-10 text-center">
-          <div className="relative h-28 w-96">
-            <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain brightness-0 invert" sizes="384px" />
+          <div className="relative h-56 w-full max-w-[34rem]">
+            <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain brightness-0 invert" sizes="544px" />
           </div>
           <h2 className="max-w-sm text-2xl font-bold text-white">
             Descubre tu camino. Decide tu futuro.
