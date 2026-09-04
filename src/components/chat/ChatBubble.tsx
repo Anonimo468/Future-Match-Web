@@ -15,13 +15,36 @@ function stripCodeFence(text: string): string {
   return match ? match[1] : text;
 }
 
+function toPayload(parsed: unknown): AssistantPayload | null {
+  const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+  if (obj && typeof obj === "object" && typeof (obj as AssistantPayload).message === "string") {
+    const options = (obj as AssistantPayload).options;
+    return {
+      message: (obj as AssistantPayload).message,
+      options: Array.isArray(options) ? options.filter((o: unknown) => typeof o === "string") : [],
+    };
+  }
+  return null;
+}
+
 function parseAssistantPayload(content: string): AssistantPayload | null {
+  const cleaned = stripCodeFence(content).trim();
+
   try {
-    const parsed = JSON.parse(stripCodeFence(content));
-    if (parsed && typeof parsed.message === "string" && Array.isArray(parsed.options)) {
-      return { message: parsed.message, options: parsed.options.filter((o: unknown) => typeof o === "string") };
-    }
-    return null;
+    return toPayload(JSON.parse(cleaned));
+  } catch {
+    // sigue abajo
+  }
+
+  // El modelo a veces agrega basura antes/después del JSON (p. ej. un
+  // "]" o una comilla suelta). Si hay un objeto balanceado { ... } dentro
+  // del texto, lo extraemos e ignoramos el resto.
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+
+  try {
+    return toPayload(JSON.parse(cleaned.slice(start, end + 1)));
   } catch {
     return null;
   }
