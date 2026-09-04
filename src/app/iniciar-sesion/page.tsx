@@ -79,8 +79,8 @@ export default function IniciarSesionPage() {
         <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/10" />
         <div className="relative z-10 flex flex-col items-center gap-6 px-10 text-center">
-          <div className="relative h-16 w-64">
-            <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain brightness-0 invert" sizes="256px" />
+          <div className="relative h-28 w-96">
+            <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain brightness-0 invert" sizes="384px" />
           </div>
           <h2 className="max-w-sm text-2xl font-bold text-white">Bienvenido de nuevo</h2>
           <p className="max-w-sm text-sm font-light text-violet-100">
@@ -93,8 +93,8 @@ export default function IniciarSesionPage() {
       <div className="flex flex-1 items-center justify-center bg-white px-6 py-12 sm:px-12">
         <div className="flex w-full max-w-md flex-col gap-7">
           <div className="flex justify-center lg:hidden">
-            <div className="relative h-10 w-40">
-              <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain" sizes="160px" />
+            <div className="relative h-16 w-64">
+              <Image src="/images/logo-future-match.webp" alt="Future Match" fill className="object-contain" sizes="256px" />
             </div>
           </div>
 
