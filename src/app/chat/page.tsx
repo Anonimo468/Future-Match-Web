@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MessageCircle, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { listChats, createChat, ChatLimitReachedError } from "@/lib/api";
+import { getChatQuota, type ChatQuota } from "@/lib/quota";
 import LimitModal from "@/components/chat/LimitModal";
 
 export default function ChatIndexPage() {
@@ -13,6 +14,7 @@ export default function ChatIndexPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [limitOpen, setLimitOpen] = useState(false);
+  const [quota, setQuota] = useState<ChatQuota | null>(null);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -22,7 +24,13 @@ export default function ChatIndexPage() {
       if (!token) return;
 
       try {
-        const chats = await listChats(token);
+        const [chats, quotaResult] = await Promise.all([
+          listChats(token),
+          getChatQuota(token).catch(() => null),
+        ]);
+
+        if (quotaResult) setQuota(quotaResult);
+
         if (chats.length > 0) {
           router.replace(`/chat/${chats[0].id}`);
           return;
@@ -94,7 +102,7 @@ export default function ChatIndexPage() {
           Nuevo chat
         </button>
       </div>
-      <LimitModal open={limitOpen} onClose={() => setLimitOpen(false)} />
+      <LimitModal open={limitOpen} onClose={() => setLimitOpen(false)} plan={quota?.plan} />
     </>
   );
 }

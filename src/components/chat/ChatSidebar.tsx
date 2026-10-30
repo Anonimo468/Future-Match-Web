@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { MessageCircle, Plus, Loader2, User as UserIcon, LogOut, Home } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getUserAvatarUrl, getUserName } from "@/lib/user";
 import { listChats, createChat, ChatLimitReachedError, type ChatSummary } from "@/lib/api";
+import { getChatQuota, type ChatQuota } from "@/lib/quota";
 import LimitModal from "./LimitModal";
+import Avatar from "@/components/Avatar";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-SV", { day: "numeric", month: "short" });
@@ -21,6 +24,7 @@ export default function ChatSidebar() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [quota, setQuota] = useState<ChatQuota | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [limitOpen, setLimitOpen] = useState(false);
@@ -29,33 +33,45 @@ export default function ChatSidebar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) return;
+  useEffect(() => {
+    let cancelled = false;
 
-    setUserLabel(
-      (data.session?.user.user_metadata?.full_name as string | undefined) ??
-        data.session?.user.email ??
-        ""
-    );
-    setAvatarUrl((data.session?.user.user_metadata?.avatar_url as string | undefined) ?? null);
+    async function load() {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token || cancelled) return;
 
-    try {
-      const list = await listChats(token);
-      setChats(list);
-      setLoadError(false);
-    } catch {
-      setLoadError(true);
-    } finally {
+      const sessionUser = data.session?.user;
+      if (!sessionUser) return;
+
+      setUserLabel(getUserName(sessionUser));
+      setAvatarUrl(getUserAvatarUrl(sessionUser));
+
+      const [chatsResult, quotaResult] = await Promise.allSettled([
+        listChats(token),
+        getChatQuota(token),
+      ]);
+
+      if (cancelled) return;
+
+      if (chatsResult.status === "fulfilled") {
+        setChats(chatsResult.value);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
+      }
+
+      setQuota(quotaResult.status === "fulfilled" ? quotaResult.value : null);
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh, pathname]);
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -99,7 +115,7 @@ export default function ChatSidebar() {
     <>
       <aside className="flex h-full w-[280px] shrink-0 flex-col bg-[#111827] text-white">
         <div className="space-y-4 p-4">
-          <div className="relative h-[144px] w-[216px]">
+          <Link href="/" className="relative block h-[144px] w-[216px]" aria-label="Ir al inicio">
             <Image
               src="/images/logo-future-match.webp"
               alt="Future Match"
@@ -107,7 +123,7 @@ export default function ChatSidebar() {
               className="object-contain object-left brightness-0 invert"
               sizes="216px"
             />
-          </div>
+          </Link>
           <button
             onClick={handleNewChat}
             disabled={creating}
@@ -187,19 +203,18 @@ export default function ChatSidebar() {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex w-full items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-white/5"
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={userLabel} className="h-9 w-9 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-fm-purple text-xs font-semibold">
-                {userLabel.charAt(0).toUpperCase() || "?"}
-              </div>
-            )}
+            <Avatar
+              src={avatarUrl}
+              name={userLabel}
+              className="h-9 w-9"
+              textClassName="text-xs"
+            />
             <div className="flex-1 truncate text-left text-sm">{userLabel}</div>
           </button>
         </div>
       </aside>
 
-      <LimitModal open={limitOpen} onClose={() => setLimitOpen(false)} />
+      <LimitModal open={limitOpen} onClose={() => setLimitOpen(false)} plan={quota?.plan} />
     </>
   );
 }

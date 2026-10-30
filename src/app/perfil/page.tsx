@@ -1,30 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { motion } from "framer-motion";
-import { Loader2, MessageCircle, Save } from "lucide-react";
+import { Camera, Loader2, MessageCircle, Save } from "lucide-react";
 import QuizHeader from "@/components/quiz/QuizHeader";
+import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
-
-function displayName(user: User) {
-  return (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
-}
-
-function avatarUrl(user: User) {
-  return user.user_metadata?.avatar_url as string | undefined;
-}
+import { getUserAvatarUrl, getUserName } from "@/lib/user";
 
 export default function PerfilPage() {
   const router = useRouter();
   const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,11 +32,65 @@ export default function PerfilPage() {
         return;
       }
       setUser(sessionUser);
-      setFullName((sessionUser.user_metadata?.full_name as string | undefined) ?? "");
+      setFullName(
+        (sessionUser.user_metadata?.display_name as string | undefined) ??
+          (sessionUser.user_metadata?.full_name as string | undefined) ??
+          ""
+      );
       setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+
+    setError(null);
+    setSaved(false);
+
+    if (!file.type.startsWith("image/")) {
+      setError("El archivo tiene que ser una imagen.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("La imagen no puede pesar más de 5 MB.");
+      return;
+    }
+
+    setUploading(true);
+
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true, contentType: file.type });
+
+    if (uploadError) {
+      setUploading(false);
+      setError("No se pudo subir la imagen. Intentá de nuevo.");
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const publicUrl = publicUrlData.publicUrl;
+
+    const { data, error: updateError } = await supabase.auth.updateUser({
+      data: { avatar_url: publicUrl, custom_avatar_url: publicUrl },
+    });
+
+    setUploading(false);
+
+    if (updateError) {
+      setError("No se pudo actualizar tu perfil. Intentá de nuevo.");
+      return;
+    }
+
+    if (data.user) setUser(data.user);
+    setSaved(true);
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +99,7 @@ export default function PerfilPage() {
     setSaving(true);
 
     const { data, error: updateError } = await supabase.auth.updateUser({
-      data: { full_name: fullName.trim() },
+      data: { full_name: fullName.trim(), display_name: fullName.trim() },
     });
 
     setSaving(false);
@@ -93,22 +143,32 @@ export default function PerfilPage() {
 
           <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-4">
-              {avatarUrl(user) ? (
-                <img
-                  src={avatarUrl(user)}
-                  alt={displayName(user)}
-                  className="h-16 w-16 rounded-full object-cover"
+              <div className="relative">
+                <Avatar
+                  src={getUserAvatarUrl(user)}
+                  name={getUserName(user)}
+                  className="h-16 w-16"
+                  textClassName="text-xl"
                 />
-              ) : (
-                <div
-                  className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg,#5b21b6,#7c3aed)" }}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  aria-label="Cambiar foto de perfil"
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-fm-purple text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
-                  {displayName(user).charAt(0).toUpperCase() || "?"}
-                </div>
-              )}
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
               <div>
-                <p className="text-base font-semibold text-[#1a1a3e]">{displayName(user)}</p>
+                <p className="text-base font-semibold text-[#1a1a3e]">{getUserName(user)}</p>
                 <p className="text-sm font-light text-gray-500">{user.email}</p>
                 {memberSince && (
                   <p className="mt-0.5 text-xs font-light text-gray-400">Miembro desde el {memberSince}</p>

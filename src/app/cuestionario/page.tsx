@@ -78,13 +78,19 @@ export default function CuestionarioPage() {
 
   // Al montar, restauramos progreso guardado (si hay) en vez de arrancar en 0.
   useEffect(() => {
-    const stored = loadStoredProgress();
-    if (stored) {
+    let active = true;
+
+    queueMicrotask(() => {
+      const stored = loadStoredProgress();
+      if (!active || !stored) return;
       setAnswers(stored.answers);
       setCurrentIndex(stored.currentIndex);
       setRestoredNotice(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Guardamos en cada cambio de respuesta/pregunta mientras se está contestando.

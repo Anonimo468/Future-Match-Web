@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { gBtn } from "@/lib/styles";
 
 const SOCIAL_ICONS = [
@@ -14,6 +15,12 @@ const SOCIAL_ICONS = [
 
 export default function Footer() {
   const [email, setEmail] = useState("");
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+
+  function resolveHref(href: string) {
+    return !isHome && href.startsWith("#") ? `/${href}` : href;
+  }
 
   return (
     <footer id="contacto" style={{ background: "#000F4D" }} className="pt-16 pb-8">
@@ -43,10 +50,15 @@ export default function Footer() {
             { l: "¿Cómo funciona?", href: "#como-funciona" },
             { l: "Explorar áreas", href: "#explorar" },
             { l: "Blog", href: "#blog-posts" },
+            { l: "Planes", href: "/planes" },
             { l: "Contacto", href: "#contacto" },
-          ].map(({ l, href }) => (
-            <a key={l} href={href} className="block text-white/75 text-xs mb-2.5 hover:text-violet-300 transition-colors font-light">{l}</a>
-          ))}
+          ].map(({ l, href }) =>
+            href.startsWith("/") ? (
+              <Link key={l} href={href} className="block text-white/75 text-xs mb-2.5 hover:text-violet-300 transition-colors font-light">{l}</Link>
+            ) : (
+              <a key={l} href={resolveHref(href)} className="block text-white/75 text-xs mb-2.5 hover:text-violet-300 transition-colors font-light">{l}</a>
+            )
+          )}
         </div>
 
         <div>

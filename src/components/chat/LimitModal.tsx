@@ -3,8 +3,23 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import { PLANS, type PlanId } from "@/lib/plans";
+import { gBtn } from "@/lib/styles";
 
-export default function LimitModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  plan?: PlanId; // plan actual (por defecto, gratuito)
+}
+
+const NEXT: Record<PlanId, string> = {
+  free: "Mejorá a Pro (7 chats) o Plus (12 chats) para seguir conversando.",
+  pro: "Mejorá a Plus para tener hasta 12 chats.",
+  plus: "Ya tenés el máximo de chats del plan Plus.",
+};
+
+export default function LimitModal({ open, onClose, plan = "free" }: Props) {
+  const limit = PLANS[plan].chats;
   return (
     <AnimatePresence>
       {open && (
@@ -25,30 +40,25 @@ export default function LimitModal({ open, onClose }: { open: boolean; onClose: 
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-violet-100">
               <Lock className="h-10 w-10 text-fm-purple" />
             </div>
-
             <h2 className="mb-3 text-center text-xl font-bold text-[#1a1a3e]">
-              Alcanzaste tu límite de 3 chats
+              Alcanzaste tu límite de {limit} chats
             </h2>
-
             <p className="mb-8 text-center text-sm font-light leading-relaxed text-gray-600">
-              Tu cuenta gratuita incluye hasta 3 chats. Ya usaste los tuyos — podés seguir
-              revisando los que ya tenés guardados desde el panel lateral.
+              Tu plan {PLANS[plan].name} incluye hasta {limit} chats. {NEXT[plan]} Podés seguir revisando los que
+              ya tenés guardados desde el panel lateral.
             </p>
-
-            <button
-              onClick={onClose}
-              className="mb-3 w-full rounded-lg py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-              style={{ background: "linear-gradient(135deg,#5b21b6,#7c3aed)" }}
-            >
+            {plan !== "plus" && (
+              <Link
+                href="/planes"
+                className="mb-3 w-full rounded-lg py-3 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={gBtn}
+              >
+                Ver planes
+              </Link>
+            )}
+            <button onClick={onClose} className="text-sm text-gray-500 transition-colors hover:text-gray-700">
               Entendido
             </button>
-
-            <Link
-              href="/"
-              className="text-sm text-gray-500 transition-colors hover:text-gray-700"
-            >
-              Volver al inicio
-            </Link>
           </motion.div>
         </motion.div>
       )}

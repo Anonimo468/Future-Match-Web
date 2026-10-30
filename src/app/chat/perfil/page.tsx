@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Save } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
-
-function displayName(user: User) {
-  return (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
-}
+import { getUserAvatarUrl, getUserName } from "@/lib/user";
 
 export default function PerfilPage() {
   const router = useRouter();
@@ -17,15 +15,26 @@ export default function PerfilPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [savingName, setSavingName] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const sessionUser = data.session?.user ?? null;
+      if (!sessionUser) {
+        router.replace("/iniciar-sesion?next=/chat/perfil");
+        return;
+      }
       setUser(sessionUser);
-      setAvatarUrl((sessionUser?.user_metadata?.avatar_url as string | undefined) ?? null);
+      setAvatarUrl(getUserAvatarUrl(sessionUser));
+      setFullName(
+        (sessionUser.user_metadata?.display_name as string | undefined) ??
+          (sessionUser.user_metadata?.full_name as string | undefined) ??
+          ""
+      );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -65,8 +74,8 @@ export default function PerfilPage() {
     const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
     const publicUrl = publicUrlData.publicUrl;
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { avatar_url: publicUrl },
+    const { data, error: updateError } = await supabase.auth.updateUser({
+      data: { avatar_url: publicUrl, custom_avatar_url: publicUrl },
     });
 
     setUploading(false);
@@ -76,8 +85,38 @@ export default function PerfilPage() {
       return;
     }
 
+    if (data.user) setUser(data.user);
     setAvatarUrl(publicUrl);
     setSuccess("Foto de perfil actualizada.");
+  }
+
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+
+    const name = fullName.trim();
+    if (!name) {
+      setError("El nombre no puede estar vacío.");
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setSavingName(true);
+
+    const { data, error: updateError } = await supabase.auth.updateUser({
+      data: { full_name: name, display_name: name },
+    });
+
+    setSavingName(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    if (data.user) setUser(data.user);
+    setSuccess("Nombre actualizado.");
   }
 
   if (!user) {
@@ -104,20 +143,12 @@ export default function PerfilPage() {
 
           <div className="flex flex-col items-center gap-3">
             <div className="relative">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayName(user)}
-                  className="h-24 w-24 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="flex h-24 w-24 items-center justify-center rounded-full text-2xl font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg,#5b21b6,#7c3aed)" }}
-                >
-                  {displayName(user).charAt(0).toUpperCase() || "?"}
-                </div>
-              )}
+              <Avatar
+                src={avatarUrl}
+                name={getUserName(user)}
+                className="h-24 w-24"
+                textClassName="text-2xl"
+              />
 
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -156,18 +187,42 @@ export default function PerfilPage() {
             </div>
           )}
 
-          <div className="mt-8 space-y-4 border-t border-gray-100 pt-6">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-gray-400">Nombre</div>
-              <div className="mt-1 text-sm text-gray-800">
-                {(user.user_metadata?.full_name as string | undefined) ?? "—"}
-              </div>
+          <form onSubmit={handleSaveName} className="mt-8 flex flex-col gap-4 border-t border-gray-100 pt-6">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="chatFullName" className="text-sm text-gray-700">
+                Nombre completo
+              </label>
+              <input
+                id="chatFullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                maxLength={80}
+                placeholder="Tu nombre completo"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition-colors focus:border-fm-purple focus:ring-2 focus:ring-fm-purple/20"
+              />
             </div>
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-gray-400">Correo electrónico</div>
-              <div className="mt-1 text-sm text-gray-800">{user.email}</div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-700">Correo electrónico</label>
+              <input
+                type="email"
+                value={user.email ?? ""}
+                disabled
+                className="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none"
+              />
             </div>
-          </div>
+
+            <button
+              type="submit"
+              disabled={savingName || !fullName.trim()}
+              className="flex items-center justify-center gap-2 self-start rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg,#5b21b6,#7c3aed)" }}
+            >
+              {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Guardar nombre
+            </button>
+          </form>
         </div>
       </div>
     </div>

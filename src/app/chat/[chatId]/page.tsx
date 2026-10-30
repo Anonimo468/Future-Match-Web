@@ -5,10 +5,9 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { getChatMessages, sendChatMessage, listChats, type ChatMessage } from "@/lib/api";
+import { getChatMessages, sendChatMessage, type ChatMessage } from "@/lib/api";
+import { getChatQuota, type ChatQuota } from "@/lib/quota";
 import ChatBubble from "@/components/chat/ChatBubble";
-
-const FREE_CHAT_LIMIT = 3;
 
 export default function ChatConversationPage() {
   const params = useParams<{ chatId: string }>();
@@ -18,7 +17,7 @@ export default function ChatConversationPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
-  const [chatCount, setChatCount] = useState<number | null>(null);
+  const [quota, setQuota] = useState<ChatQuota | null>(null);
   const [loadError, setLoadError] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -35,14 +34,18 @@ export default function ChatConversationPage() {
       if (!token) return;
 
       try {
-        const [msgs, chats] = await Promise.all([
+        const [msgsResult, quotaResult] = await Promise.allSettled([
           getChatMessages(token, params.chatId),
-          listChats(token),
+          getChatQuota(token),
         ]);
-        setMessages(msgs);
-        setChatCount(chats.length);
-      } catch {
-        setLoadError(true);
+
+        if (msgsResult.status === "fulfilled") {
+          setMessages(msgsResult.value);
+        } else {
+          setLoadError(true);
+        }
+
+        setQuota(quotaResult.status === "fulfilled" ? quotaResult.value : null);
       } finally {
         setLoading(false);
       }
@@ -121,9 +124,9 @@ export default function ChatConversationPage() {
     <>
       <header className="flex items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
         <h1 className="text-lg font-semibold text-[#1a1a3e]">Chat con Future Match</h1>
-        {chatCount !== null && (
+        {quota !== null && (
           <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-fm-purple">
-            {chatCount}/{FREE_CHAT_LIMIT} chats gratis usados
+            {`${quota.used}/${quota.limit} chats ${quota.plan === "free" ? "gratis " : ""}usados`}
           </span>
         )}
       </header>
